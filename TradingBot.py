@@ -90,8 +90,7 @@ df['SMA600']=ta.trend.sma_indicator(df['close'], 600)
 df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=long_ma_window)
 
 #Relative Strenth index  
-df['RSI'] =ta.momentum.rsi(close=df['close'], window=14)
-
+df['STOCH_RSI'] = ta.momentum.stochrsi(close=df['close'], window=14, smooth1=3, smooth2=3)
 
 df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
 
