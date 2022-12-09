@@ -16,32 +16,32 @@ print("--- Start Execution Time :", current_time, "---")
 account_to_select = "bitget_exemple"
 production = True
 
-
-bitget = PerpBitget(
-    
-    #get your apikey on your bitget account
-    
-   # apiKey=secret[account_to_select]["apiKey"]
-   # secret=secret[account_to_select]["secret"],
-   # password=secret[account_to_select]["password"],
-)
-
-
 pair = "BTC/USDT:USDT"
 timeframe = "1h"
 leverage = 1
 
 type = ["long", "short"]
 
+# Here we have default values for the bollinger band indicator 
+
+bol_window = 100
+bol_std = 2.25
+min_bol_spread = 0
+long_ma_window = 500
 
 def open_long(row):
-    if (row['STOCH_RSI'] <= 0.2)and (df['SMA200'].iloc[-2] < df['SMA600'].iloc[-2]) or(df['SMA200'].iloc[-2] > df['SMA600'].iloc[-2]):
+    if (
+        row['n1_close'] < row['n1_higher_band'] 
+        and (row['close'] > row['higher_band']) 
+        and ((row['n1_higher_band'] - row['n1_lower_band']) / row['n1_lower_band'] > min_bol_spread)
+        (row['close'] > row['long_ma'])
+    ):
         return True
     else:
         return False
 
 def close_long(row):
-    if (row['STOCH_RSI'] > 0.8)and (df['SMA200'].iloc[-2] < df['SMA600'].iloc[-2]):
+    if (row['close'] < row['ma_band']):
         return True
     else:
         return False
@@ -51,7 +51,8 @@ def open_short(row):
         row['n1_close'] > row['n1_lower_band'] 
         and (row['close'] < row['lower_band']) 
         and ((row['n1_higher_band'] - row['n1_lower_band']) / row['n1_lower_band'] > min_bol_spread)
-        and (row['close'] < row['long_ma'])) or (df['SMA200'].iloc[-2] < df['SMA600'].iloc[-2]):
+        and (row['close'] < row['long_ma'])        
+    ):
         return True
     else:
         return False
@@ -62,36 +63,26 @@ def close_short(row):
     else:
         return False
 
+bitget = PerpBitget(
+    
+    #get your apikey on your bitget account
+    
+   # apiKey=secret[account_to_select]["apiKey"]
+   # secret=secret[account_to_select]["secret"],
+   # password=secret[account_to_select]["password"],
+)
 
 # Get data
 df = bitget.get_more_last_historical_async(pair, timeframe, 1000)
 
-# settings of our indicator
-# Here we have default values for our indicators 
-
-
-#bollinger band
-bol_window = 100
-bol_std = 2.25
-min_bol_spread = 0
-long_ma_window = 500
-
-
+# Populate indicator
 df.drop(columns=df.columns.difference(['open','high','low','close','volume']), inplace=True)
 bol_band = ta.volatility.BollingerBands(close=df["close"], window=bol_window, window_dev=bol_std)
 df["lower_band"] = bol_band.bollinger_lband()
 df["higher_band"] = bol_band.bollinger_hband()
 df["ma_band"] = bol_band.bollinger_mavg()
 
-# moving average
-df['SMA200']=ta.trend.sma_indicator(df['close'], 200)
-df['SMA600']=ta.trend.sma_indicator(df['close'], 600)
-
 df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=long_ma_window)
-
-#Relative Strenth index  
-df['RSI'] =ta.momentum.rsi(close=df['close'], window=14)
-
 
 df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
 
